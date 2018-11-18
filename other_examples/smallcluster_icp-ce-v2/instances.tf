@@ -92,7 +92,7 @@ resource "vsphere_virtual_machine" "icpmaster" {
 
     customize {
       linux_options {
-        host_name = "${format("${lower(var.instance_name)}-master%01d", count.index + 1) }"
+        host_name = "${format("${lower(var.instance_name)}-master%02d", count.index + 1) }"
         domain    = "${var.domain != "" ? var.domain : format("%s.local", var.instance_name)}"
       }
 
@@ -101,8 +101,8 @@ resource "vsphere_virtual_machine" "icpmaster" {
         ipv4_netmask  = "${var.netmask}"
       }
 
-      #ipv4_gateway    = "${var.gateway}"
-      #dns_server_list = "${var.dns_servers}"
+      ipv4_gateway    = "${var.gateway}"
+      dns_server_list = "${var.dns_servers}"
     }
   }
 
