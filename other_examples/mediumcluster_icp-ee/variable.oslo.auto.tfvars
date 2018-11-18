@@ -1,20 +1,20 @@
 #######################################
 ##### vSphere Access Credentials ######
 #######################################
-vsphere_server = "10.33.23.119"
+vsphere_server = "10.33.3.160"
 # Set username/password as environment variables VSPHERE_USER and VSPHERE_PASSWORD
 
 ##############################################
 ##### vSphere deployment specifications ######
 ##############################################
 # Following resources must exist in vSphere
-vsphere_datacenter = "LBS"
-vsphere_cluster = "LBS-Cluster"
+vsphere_datacenter = "TEC"
+vsphere_cluster = "prodGen8
 vsphere_resource_pool = "terraform"
-network_label = "VM Network"
-datastore = "ESX_Flex_LUN4"
+network_label = "VLAN 5"
+datastore = "vmware_prod_power_lun06"
 #Tested with Ubuntu 1604 and Centos 7.5
-template = "lbsubuntutemplate1604icpv2"
+template = "vm_ubuntu1604LTS_template_150G_ICP"
 # Folder to provision the new VMs in, does not need to exist in vSphere
 folder = "ibmcloudprivate"
 
@@ -28,17 +28,17 @@ instance_name = "icptest"
 
 ##### Network #####
 #staticipblock_offset is the start_iprange
-staticipblock = "10.33.23.0/24"
-staticipblock_offset = 180
-gateway = "10.33.23.1"
+staticipblock = "10.33.5.0/24"
+staticipblock_offset = 183
+gateway = "10.33.5.1"
 netmask = "24"
-dns_servers = [ "10.33.23.110", "8.8.8.8" ]
+dns_servers = [ "10.33.3.10", "10.33.3.11" ]
 
 # Cluster access
-cluster_vip = "10.33.23.178"
+cluster_vip = "10.33.5.180"
 #Centos is default with ens192
 cluster_vip_iface = "ens160"
-proxy_vip = "10.33.23.179"
+proxy_vip = "10.33.5.181"
 proxy_vip_iface = "ens160"
 
 ##### Local Terraform connectivity details #####
