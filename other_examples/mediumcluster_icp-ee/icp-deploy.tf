@@ -13,6 +13,7 @@ locals {
 ##################################
 ### Deploy ICP to cluster
 ##################################
+#Change the ref:2.3.4 to test newer module of ICP deploy
 module "icpprovision" {
     source = "github.com/ibm-cloud-architecture/terraform-module-icp-deploy.git?ref=2.3.4"
 
@@ -42,7 +43,7 @@ module "icpprovision" {
 
     ###################################################################################################################################
     ## You can feed in arbitrary configuration items in the icp_configuration map.
-    ## Available configuration items availble from https://www.ibm.com/support/knowledgecenter/SSBS6K_2.1.0.3/installing/config_yaml.html
+    ## Available configuration items availble from https://www.ibm.com/support/knowledgecenter/SSBS6K_3.1.0/installing/config_yaml.html
     icp_config_file = "./icp-config.yaml"
     icp_configuration = {
       "network_cidr"                    = "${var.network_cidr}"

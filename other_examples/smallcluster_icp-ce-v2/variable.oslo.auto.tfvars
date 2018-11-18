@@ -9,7 +9,7 @@ vsphere_server = "10.33.3.160"
 ##############################################
 # Following resources must exist in vSphere
 vsphere_datacenter = "TEC"
-vsphere_cluster = "prodGen8
+vsphere_cluster = "prodGen8"
 vsphere_resource_pool = "terraform"
 network_label = "VLAN 5"
 datastore = "vmware_prod_power_lun06"
@@ -43,13 +43,13 @@ proxy_vip_iface = "ens160"
 
 ##### Local Terraform connectivity details #####
 ssh_user = "root"
-ssh_password = "change_me"
+#ssh_password = "change_me"
 
 ###### ICP installation method #####
 ## ibmcom/icp-inception:3.1.0 is CE and ibmcom/icp-inception-amd64:3.1.0-ee is enterprise
-icp_inception_image = "ibmcom/icp-inception-amd64:3.1.0-ee"
-image_location = "nfs:10.33.5.44:/storage/icp/3.1.0/GA/ibm-cloud-private-x86_64-3.1.0.tar.gz"
-docker_package_location = "nfs:10.33.5.44:/storage/icp/3.1.0/GA/icp-docker-18.03.1_x86_64.bin"
+#icp_inception_image = "ibmcom/icp-inception-amd64:3.1.0-ee"
+#image_location = "nfs:10.33.5.44:/storage/icp/3.1.0/GA/ibm-cloud-private-x86_64-3.1.0.tar.gz"
+#docker_package_location = "nfs:10.33.5.44:/storage/icp/3.1.0/GA/icp-docker-18.03.1_x86_64.bin"
 
 ###### ICP installation method #####
 #icp_inception_image = "ibmcom/icp-inception-amd64:3.1.0-ee"
@@ -81,19 +81,19 @@ worker = {
     memory = "8192"
     docker_disk_size = "200"
     thin_provisioned = "true"
-}
-management = {
-    nodes = "1"
-    vcpu = "4"
-    memory = "16384"
-    thin_provisioned = "true"
-}
-va = {
-    nodes = "1"
-    vcpu = "4"
-    memory = "8192"
-    thin_provisioned = "true"
-}
+#}
+#management = {
+#    nodes = "1"
+#    vcpu = "4"
+#    memory = "16384"
+#    thin_provisioned = "true"
+#}
+#va = {
+#    nodes = "1"
+#    vcpu = "4"
+#    memory = "8192"
+#    thin_provisioned = "true"
+#}
 
 ####### NFS Server #####
 registry_mount_src = "10.33.5.44:/storage/user1-icp-31/registry"
