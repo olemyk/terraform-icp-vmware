@@ -16,9 +16,8 @@ This template provisions a small cluster with ICP 2.1.0 community edition.
 
 ### Using the templates
 
-1. git clone or download the templates 
+1. git clone or download the templates
 1. Update the [variables.tf](variables.tf) file to reflect your environment
 1. Run `terraform init` to download depenencies (modules and plugins)
 1. Run `terraform plan` to investigate deployment plan
 1. Run `terraform apply` to start deployment
-

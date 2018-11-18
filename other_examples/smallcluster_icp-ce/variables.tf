@@ -1,154 +1,272 @@
-####################################
-#### vSphere Access Credentials ####
-####################################
-variable "vsphere_server" {
-  description = "vsphere server to connect to"
-  default = "___INSERT YOUR OWN____"
+##################################
+# Configure the VMware vSphere Provider
+##################################
+provider "vsphere" {
+  version        = "~> 1.1"
+  vsphere_server = "${var.vsphere_server}"
+
+  # if you have a self-signed cert
+  allow_unverified_ssl = "${var.allow_unverified_ssl}"
+
 }
 
-# Set username/password as environment variables VSPHERE_USER and VSPHERE_PASSWORD
-
-variable "allow_unverified_ssl" {
-  description = "Allows terraform vsphere provider to communicate with vsphere servers with self signed certificates"
-  default = "true"
+##################################
+#### Collect resource IDs
+##################################
+data "vsphere_datacenter" "dc" {
+  name = "${var.vsphere_datacenter}"
 }
 
-##############################################
-##### vSphere deployment specifications ######
-##############################################
-
-variable "vsphere_datacenter" {
-  description = "Name of the vsphere datacenter to deploy to"
-  default     = "___INSERT YOUR OWN____"
+data "vsphere_datastore" "datastore" {
+  name          = "${var.datastore}"
+  datacenter_id = "${data.vsphere_datacenter.dc.id}"
 }
 
-variable "vsphere_cluster" {
-  description = "Name of vsphere cluster to deploy to"
-  default     = "___INSERT YOUR OWN____"
+data "vsphere_resource_pool" "pool" {
+  name          = "${var.vsphere_resource_pool}"
+  datacenter_id = "${data.vsphere_datacenter.dc.id}"
 }
 
-variable "vsphere_resource_pool" {
-  description = "Path of resource pool to deploy to. i.e. <DC>/Resources/<pool name>"
-  default     = "___INSERT YOUR OWN____"
+data "vsphere_network" "network" {
+  name          = "${var.network_label}"
+  datacenter_id = "${data.vsphere_datacenter.dc.id}"
 }
 
-variable "network_label" {
-  description = "Name or label of network to provision VMs on. All VMs will be provisioned on the same network"
-  default     = "___INSERT YOUR OWN____"
+data "vsphere_virtual_machine" "template" {
+  name          = "${var.template}"
+  datacenter_id = "${data.vsphere_datacenter.dc.id}"
 }
 
-variable "datastore" {
-  description = "Name of datastore to use for the VMs"
-  default     = "___INSERT YOUR OWN____"
+# Create a folder
+resource "vsphere_folder" "icpenv" {
+  path = "${var.folder}"
+  type = "vm"
+  datacenter_id = "${data.vsphere_datacenter.dc.id}"
 }
 
-## Note
-# Because of https://github.com/terraform-providers/terraform-provider-vsphere/issues/271 templates must be converted to VMs on ESX 5.5 (and possibly other)
-variable "template" {
-  description = "Name of template or VM to clone for the VM creations. Tested on Ubuntu 16.04 LTS"
-  default     = "___INSERT YOUR OWN____"
-}
+##################################
+#### Create the Master VM
+##################################
+resource "vsphere_virtual_machine" "icpmaster" {
+  depends_on = ["vsphere_folder.icpenv"]
+  folder     = "${vsphere_folder.icpenv.path}"
 
-variable "folder" {
-  description = "Name of VM Folder to provision the new VMs in. The folder will be created"
-  default     = "ibmcloudprivate"
-}
+  #####
+  # VM Specifications
+  ####
+  count            = "${var.master["nodes"]}"
+  resource_pool_id = "${data.vsphere_resource_pool.pool.id}"
 
-variable "instance_name" {
-  description = "Name of the ICP installation, will be used as basename for VMs"
-  default     = "icptest"
-}
+  name      = "${format("${lower(var.instance_name)}-master%01d", count.index + 1) }"
+  num_cpus  = "${var.master["vcpu"]}"
+  memory    = "${var.master["memory"]}"
 
-variable  "domain"  {
-  description = "Specify domain name to be used for linux customization on the VMs, or leave blank to use <instance_name>.icp"
-  default     = ""
-}
+  ####
+  # Disk specifications
+  ####
+  datastore_id  = "${data.vsphere_datastore.datastore.id}"
+  guest_id      = "${data.vsphere_virtual_machine.template.guest_id}"
+  scsi_type     = "${data.vsphere_virtual_machine.template.scsi_type}"
 
-variable  "gateway" {
-  description = "Default gateway for the newly provisioned VMs. Leave blank to use DHCP"
-  default     = ""
-}
+  disk {
+    label             = "${format("${lower(var.instance_name)}-master%01d.vmdk", count.index + 1) }"
+    size             = "${var.master["disk_size"]        != "" ? var.master["disk_size"]        : data.vsphere_virtual_machine.template.disks.0.size}"
+    eagerly_scrub    = "${var.master["eagerly_scrub"]    != "" ? var.master["eagerly_scrub"]    : data.vsphere_virtual_machine.template.disks.0.eagerly_scrub}"
+    thin_provisioned = "${var.master["thin_provisioned"] != "" ? var.master["thin_provisioned"] : data.vsphere_virtual_machine.template.disks.0.thin_provisioned}"
+    keep_on_remove   = "${var.master["keep_disk_on_remove"]}"
+  }
 
-variable "netmask" {
-  description = "Netmask in CIDR notation when using static IPs. For example 16 or 24. Leave blank for DHCP"
-  default     = ""
-}
+  ####
+  # Network specifications
+  ####
+  network_interface {
+    network_id   = "${data.vsphere_network.network.id}"
+    adapter_type = "${data.vsphere_virtual_machine.template.network_interface_types[0]}"
+  }
 
-variable  "dns_servers" {
-  description = "DNS Servers to configure on VMs"
-  default = ["8.8.8.8", "8.8.4.4"]
-}
+  ####
+  # VM Customizations
+  ####
+  clone {
+    template_uuid = "${data.vsphere_virtual_machine.template.id}"
 
-#################################
-##### ICP Instance details ######
-#################################
-variable "master" {
-  type = "map"
+    customize {
+      linux_options {
+        host_name = "${format("${lower(var.instance_name)}-master%01d", count.index + 1) }"
+        domain    = "${var.domain != "" ? var.domain : format("%s.local", var.instance_name)}"
+      }
+      network_interface {
+        #ipv4_address  = "${var.master["start_iprange"]}"
+        #ipv4_netmask  = "${var.netmask}"
+      }
 
-  default = {
-    nodes  = "1"
-    vcpu   = "4"
-    memory = "16384"
-
-    disk_size           = "100"   # Specify size or leave empty to use same size as template.
-    thin_provisioned    = ""      # True or false. Whether to use thin provisioning on the disk. Leave blank to use same as template
-    eagerly_scrub       = ""      # True or false. If set to true disk space is zeroed out on VM creation. Leave blank to use same as template
-    keep_disk_on_remove = "false" # Set to 'true' to not delete a disk on removal.
-
-    start_iprange = ""            # Leave blank for DHCP, else masters will be allocated range starting from this address
+      #ipv4_gateway    = "${var.gateway}"
+      #dns_server_list = "${var.dns_servers}"
+    }
   }
 }
 
-variable "proxy" {
-  type = "map"
 
-  default = {
-    nodes   = "1"
-    vcpu    = "1"
-    memory  = "2048"
+##################################
+### Create the Proxy VM
+##################################
+resource "vsphere_virtual_machine" "icpproxy" {
+  depends_on = ["vsphere_folder.icpenv"]
+  folder     = "${vsphere_folder.icpenv.path}"
 
-    disk_size           = ""      # Specify size or leave empty to use same size as template.
-    thin_provisioned    = ""      # True or false. Whether to use thin provisioning on the disk. Leave blank to use same as template
-    eagerly_scrub       = ""      # True or false. If set to true disk space is zeroed out on VM creation. Leave blank to use same as template
-    keep_disk_on_remove = "false" # Set to 'true' to not delete a disk on removal.
+  #####
+  # VM Specifications
+  ####
+  count            = "${var.proxy["nodes"]}"
+  resource_pool_id = "${data.vsphere_resource_pool.pool.id}"
 
-    start_iprange = ""            # Leave blank for DHCP, else proxies will be allocated range starting from this address
+  name     = "${format("${lower(var.instance_name)}-proxy%01d", count.index + 1) }"
+  num_cpus = "${var.proxy["vcpu"]}"
+  memory   = "${var.proxy["memory"]}"
+
+
+  ####
+  # Disk specifications
+  ####
+  datastore_id  = "${data.vsphere_datastore.datastore.id}"
+  guest_id      = "${data.vsphere_virtual_machine.template.guest_id}"
+  scsi_type     = "${data.vsphere_virtual_machine.template.scsi_type}"
+
+  disk {
+    label             = "${format("${lower(var.instance_name)}-proxy%01d.vmdk", count.index + 1) }"
+    size             = "${var.proxy["disk_size"]        != "" ? var.proxy["disk_size"]        : data.vsphere_virtual_machine.template.disks.0.size}"
+    eagerly_scrub    = "${var.proxy["eagerly_scrub"]    != "" ? var.proxy["eagerly_scrub"]    : data.vsphere_virtual_machine.template.disks.0.eagerly_scrub}"
+    thin_provisioned = "${var.proxy["thin_provisioned"] != "" ? var.proxy["thin_provisioned"] : data.vsphere_virtual_machine.template.disks.0.thin_provisioned}"
+    keep_on_remove   = "${var.proxy["keep_disk_on_remove"]}"
+  }
+
+
+  ####
+  # Network specifications
+  ####
+  network_interface {
+    network_id   = "${data.vsphere_network.network.id}"
+    adapter_type = "${data.vsphere_virtual_machine.template.network_interface_types[0]}"
+  }
+
+
+  ####
+  # VM Customizations
+  ####
+  clone {
+    template_uuid = "${data.vsphere_virtual_machine.template.id}"
+
+    customize {
+      linux_options {
+        host_name = "${format("${lower(var.instance_name)}-proxy%01d", count.index + 1) }"
+        domain    = "${var.domain != "" ? var.domain : format("%s.local", var.instance_name)}"
+      }
+      network_interface { }
+      dns_server_list = "${var.dns_servers}"
+    }
   }
 }
 
-variable "worker" {
-  type = "map"
+##################################
+### Create the Worker VMs
+##################################
+resource "vsphere_virtual_machine" "icpworker" {
+  depends_on = ["vsphere_folder.icpenv"]
+  folder     = "${vsphere_folder.icpenv.path}"
 
-  default = {
-    nodes       = "3"
-    vcpu        = "2"
-    memory      = "4096"
 
-    disk_size           = ""      # Specify size or leave empty to use same size as template.
-    thin_provisioned    = ""      # True or false. Whether to use thin provisioning on the disk. Leave blank to use same as template
-    eagerly_scrub       = ""      # True or false. If set to true disk space is zeroed out on VM creation. Leave blank to use same as template
-    keep_disk_on_remove = "false" # Set to 'true' to not delete a disk on removal.
+  #####
+  # VM Specifications
+  ####
+  count            = "${var.worker["nodes"]}"
+  resource_pool_id = "${data.vsphere_resource_pool.pool.id}"
 
-    start_iprange = ""            # Leave blank for DHCP, else workers will be allocated range starting from this address
+  name     = "${format("${lower(var.instance_name)}-worker%01d", count.index + 1) }"
+  num_cpus = "${var.worker["vcpu"]}"
+  memory   = "${var.worker["memory"]}"
+
+
+  #####
+  # Disk Specifications
+  ####
+  datastore_id  = "${data.vsphere_datastore.datastore.id}"
+  guest_id      = "${data.vsphere_virtual_machine.template.guest_id}"
+  scsi_type     = "${data.vsphere_virtual_machine.template.scsi_type}"
+
+  disk {
+    label             = "${format("${lower(var.instance_name)}-worker%01d.vmdk", count.index + 1) }"
+    size             = "${var.worker["disk_size"]        != "" ? var.worker["disk_size"]        : data.vsphere_virtual_machine.template.disks.0.size}"
+    eagerly_scrub    = "${var.worker["eagerly_scrub"]    != "" ? var.worker["eagerly_scrub"]    : data.vsphere_virtual_machine.template.disks.0.eagerly_scrub}"
+    thin_provisioned = "${var.worker["thin_provisioned"] != "" ? var.worker["thin_provisioned"] : data.vsphere_virtual_machine.template.disks.0.thin_provisioned}"
+    keep_on_remove   = "${var.worker["keep_disk_on_remove"]}"
+  }
+
+
+  ####
+  # Network specifications
+  ####
+  network_interface {
+    network_id   = "${data.vsphere_network.network.id}"
+    adapter_type = "${data.vsphere_virtual_machine.template.network_interface_types[0]}"
+  }
+
+
+  #####
+  # VM Customizations
+  ####
+  clone {
+    template_uuid = "${data.vsphere_virtual_machine.template.id}"
+
+    customize {
+      linux_options {
+        host_name = "${format("${lower(var.instance_name)}-worker%01d", count.index + 1) }"
+        domain    = "${var.domain != "" ? var.domain : format("%s.local", var.instance_name)}"
+      }
+      network_interface { }
+
+      dns_server_list = "${var.dns_servers}"
+    }
   }
 }
 
-variable "icp_version" {
-  description = "Supports the format 'org/repo:version', as well as just '2.1.0.X' version. 'ibmcom/icp-inception:2.1.0.3' and '2.1.0.3' provide the same outcome."
-  default     = "2.1.0.3"
-}
 
-variable "icppassword" {
-  description = "Password for the initial admin user in ICP"
-  default     = "MySecretPassw0rd"
-}
+##################################
+### Deploy ICP to cluster
+##################################
+module "icpprovision" {
+    source = "github.com/ibm-cloud-architecture/terraform-module-icp-deploy.git?ref=2.3.3"
 
-variable "ssh_user" {
-  description = "Username which terraform will use to connect to newly created VMs during provisioning"
-  default     = "root"
-}
+    # Provide IP addresses for master, proxy and workers
+    icp-master = ["${vsphere_virtual_machine.icpmaster.*.default_ip_address}"]
+    icp-proxy = ["${vsphere_virtual_machine.icpproxy.*.default_ip_address}"]
+    icp-worker = ["${vsphere_virtual_machine.icpworker.*.default_ip_address}"]
 
-variable "ssh_keyfile" {
-  description = "Location of private ssh key to connect to newly created VMs during provisioning"
-  default     = "~/.ssh/id_rsa"
+    # Provide desired ICP version to provision
+    icp-version = "${var.icp_version}"
+
+
+    /* Workaround for terraform issue #10857
+     When this is fixed, we can work this out automatically */
+    cluster_size  = "${var.master["nodes"] + var.worker["nodes"] + var.proxy["nodes"]}"
+
+    ###################################################################################################################################
+    ## You can feed in arbitrary configuration items in the icp_configuration map.
+    ## Available configuration items available from https://www.ibm.com/support/knowledgecenter/SSBS6K_2.1.0/installing/config_yaml.html
+    icp_configuration = {
+      "network_cidr"              = "192.168.0.0/16"
+      "service_cluster_ip_range"  = "10.10.10.0/24"
+
+      "default_admin_password"    = "${var.icppassword}"
+    }
+
+    # We will let terraform generate a new ssh keypair
+    # for boot master to communicate with worker and proxy nodes
+    # during ICP deployment
+    generate_key = true
+
+    # SSH user and key for terraform to connect to newly created VMs
+    # ssh_key is the private key corresponding to the public assumed to be included in the template
+    ssh_user  = "${var.ssh_user}"
+    ssh_key_file   = "${var.ssh_keyfile}"
+    ssh_agent = false
 }

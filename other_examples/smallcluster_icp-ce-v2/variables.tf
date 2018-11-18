@@ -32,7 +32,7 @@ variable "vsphere_resource_pool" {
   default     = "___INSERT YOUR OWN____"
 }
 
-variable "network_label" { 
+variable "network_label" {
   description = "Name or label of network to provision VMs on. All VMs will be provisioned on the same network"
   default     = "___INSERT YOUR OWN____"
 }

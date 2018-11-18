@@ -28,8 +28,8 @@ instance_name = "icptest"
 
 ##### Network #####
 #staticipblock_offset is the start_iprange
-staticipblock = "10.33.5.0/24"
-staticipblock_offset = 183
+#staticipblock = "10.33.5.0/24"
+#staticipblock_offset = 183
 gateway = "10.33.5.1"
 netmask = "24"
 dns_servers = [ "10.33.3.10", "10.33.3.11" ]
@@ -68,6 +68,7 @@ master = {
     memory = "16384"
 	  disk_size = "250"
     thin_provisioned = "true"
+    start_iprange = "10.33.5.183"
 }
 proxy = {
     nodes = "1"
