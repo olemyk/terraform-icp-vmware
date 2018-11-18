@@ -66,7 +66,7 @@ master = {
     nodes = "1"
     vcpu = "8"
     memory = "16384"
-#	  disk_size = ""
+	  disk_size = "250"
     thin_provisioned = "true"
     start_iprange = "10.33.5.180"            # Leave blank for DHCP, else masters will be allocated range starting from this address
 }
@@ -82,8 +82,9 @@ worker = {
     vcpu = "8"
     memory = "8192"
     docker_disk_size = "200"
-    thin_provisioned = "true"'
+    thin_provisioned = "true"
     start_iprange = "10.33.5.182"            # Leave blank for DHCP, else masters will be allocated range starting from this address'
+}
 
 ####### NFS Server #####
 #registry_mount_src = "10.33.5.44:/storage/user1-icp-31/registry"
