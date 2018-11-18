@@ -92,19 +92,20 @@ resource "vsphere_virtual_machine" "icpmaster" {
 
     customize {
       linux_options {
-        host_name = "${format("${lower(var.instance_name)}-master%02d", count.index + 1) }"
+        host_name = "${format("${lower(var.instance_name)}-master%01d", count.index + 1) }"
         domain    = "${var.domain != "" ? var.domain : format("%s.local", var.instance_name)}"
       }
-
       network_interface {
-        ipv4_address  = "${var.staticipblock != "0.0.0.0/0" ? cidrhost(var.staticipblock, 1 + var.staticipblock_offset + count.index) : ""}"
-        ipv4_netmask  = "${var.netmask}"
+        #ipv4_address  = "${var.master["start_iprange"]}"
+        #ipv4_netmask  = "${var.netmask}"
       }
 
-      ipv4_gateway    = "${var.gateway}"
-      dns_server_list = "${var.dns_servers}"
+      #ipv4_gateway    = "${var.gateway}"
+      #dns_server_list = "${var.dns_servers}"
     }
   }
+}
+
 
 ##################################
 ### Create the Proxy VM
